@@ -32,12 +32,16 @@ conf_int = forecast_result.conf_int()
 forecast.index = test.index
 conf_int.index = test.index
 
+# Round forecast and confidence intervals to 2 decimals
+forecast_rounded = forecast.round(2)
+conf_int_rounded = conf_int.round(2)
+
 # ---- Download Button ----
 download_df = pd.DataFrame({
-    "date": forecast.index,
-    "forecasted_sales": forecast.values,
-    "ci_lower_90": conf_int.iloc[:, 0].values,
-    "ci_upper_90": conf_int.iloc[:, 1].values
+    "date": forecast_rounded.index,
+    "forecasted_sales": forecast_rounded.values,
+    "ci_lower_90": conf_int_rounded.iloc[:, 0].values,
+    "ci_upper_90": conf_int_rounded.iloc[:, 1].values
 })
 download_df.set_index("date", inplace=True)
 
@@ -53,9 +57,9 @@ st.download_button(
 # ---- User selects week ----
 st.write("### Select a Week to View Forecast Details")
 week_num = st.slider("Choose a week number (1 = next week):", 1, 52, 1)
-selected_date = forecast.index[week_num - 1]
-selected_forecast = forecast[selected_date]
-selected_ci = conf_int.loc[selected_date]
+selected_date = forecast_rounded.index[week_num - 1]
+selected_forecast = forecast_rounded[selected_date]
+selected_ci = conf_int_rounded.loc[selected_date]
 
 st.write(f"#### Week {week_num} ({selected_date.date()}):")
 st.metric("Forecasted Sales", f"{selected_forecast:.2f}")
@@ -65,11 +69,11 @@ st.write(f"90% Confidence Interval: **[{selected_ci[0]:.2f}, {selected_ci[1]:.2f
 st.write("### Forecast vs Actual (Last 52 Weeks)")
 fig, ax = plt.subplots(figsize=(10, 5))
 ax.plot(test.index, test["sales"], label="Actual", color="black")
-ax.plot(test.index, forecast, label="Forecast", color="blue")
+ax.plot(test.index, forecast_rounded, label="Forecast", color="blue")
 ax.fill_between(
     test.index,
-    conf_int.iloc[:, 0],
-    conf_int.iloc[:, 1],
+    conf_int_rounded.iloc[:, 0],
+    conf_int_rounded.iloc[:, 1],
     alpha=0.2,
     label="90% CI"
 )
