@@ -19,7 +19,7 @@ train = df.iloc[:-52]   # first 2 years (approx.)
 test  = df.iloc[-52:]   # last 1 year
 
 # ---- Fit ARIMA Model ----
-order = (2, 1, 2)  # manually chosen
+order = (2, 0, 2)  # manually chosen
 with st.spinner(f"Training ARIMA{order}..."):
     model     = ARIMA(train["sales"], order=order)
     model_fit = model.fit()
