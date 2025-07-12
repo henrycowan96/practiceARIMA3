@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import streamlit as st
 import matplotlib.pyplot as plt
-from statsmodels.tsa.arima.model import ARIMA
+from statsmodels.tsa.statespace.sarimax import SARIMAX
 from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
 
 # ---- Load Data ----
@@ -10,26 +10,33 @@ df = pd.read_csv("chocolate_sales.csv", parse_dates=["date"])
 df.set_index("date", inplace=True)
 
 # ---- Streamlit App ----
-st.title("Chocolate Sales Forecast")
+st.title("Chocolate Sales Forecast (SARIMAX)")
 st.write("### Historical Weekly Sales")
 st.line_chart(df["sales"])
 
 # ---- Train/Test Split ----
-train = df.iloc[:-52]   # first 2 years (approx.)
-test  = df.iloc[-52:]   # last 1 year
+train = df.iloc[:-52]   # first ~2 years
+test  = df.iloc[-52:]   # last year
 
-# ---- Fit ARIMA Model ----
-order = (2, 1, 2)  # manually chosen
-with st.spinner(f"Training ARIMA{order}..."):
-    model     = ARIMA(train["sales"], order=order)
-    model_fit = model.fit()
+# ---- Fit Seasonal ARIMA (SARIMAX) ----
+# non‑seasonal order (p, d, q) = (1, 1, 1)
+# seasonal order  (P, D, Q, s) = (1, 1, 1, 52)
+with st.spinner("Training SARIMAX(1,1,1)x(1,1,1,52)…"):
+    model = SARIMAX(
+        train["sales"],
+        order=(1, 1, 1),
+        seasonal_order=(1, 1, 1, 52),
+        enforce_stationarity=False,
+        enforce_invertibility=False,
+    )
+    fit = model.fit(disp=False)
 
-# ---- Forecast ----
-forecast_result = model_fit.get_forecast(steps=52)
-forecast        = forecast_result.predicted_mean
-conf_int        = forecast_result.conf_int()
+# ---- Forecast 52 Weeks ----
+forecast_res = fit.get_forecast(steps=52)
+forecast     = forecast_res.predicted_mean
+conf_int     = forecast_res.conf_int()
 
-# ---- Calculate Metrics ----
+# ---- Compute Metrics ----
 r2   = r2_score(test["sales"], forecast)
 mse  = mean_squared_error(test["sales"], forecast)
 rmse = np.sqrt(mse)
@@ -48,14 +55,15 @@ ax.fill_between(
     alpha=0.2,
     label="95% CI"
 )
-ax.set_title("ARIMA Forecast (52 Weeks)")
+ax.set_title("SARIMAX Forecast (52 Weeks)")
 ax.legend()
 st.pyplot(fig)
 
 # ---- Display Metrics ----
 st.write("### Model Performance")
-col1, col2, col3, col4 = st.columns(4)
-col1.metric("R²",   f"{r2:.3f}")
-col2.metric("RMSE", f"{rmse:.2f}")
-col3.metric("MAE",  f"{mae:.2f}")
-col4.metric("MAPE", f"{mape:.2f}%")
+c1, c2, c3, c4 = st.columns(4)
+c1.metric("R²",   f"{r2:.3f}")
+c2.metric("RMSE", f"{rmse:.2f}")
+c3.metric("MAE",  f"{mae:.2f}")
+c4.metric("MAPE", f"{mape:.2f}%")
+
