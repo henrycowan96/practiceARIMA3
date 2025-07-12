@@ -18,8 +18,8 @@ train = df.iloc[:-52]
 test = df.iloc[-52:]
 
 # Fit ARIMA model (manually chosen order)
-order = (2, 1, 2)  # Adjust this if needed
-with st.spinner(f"Training ARIMA model with order {order}..."):
+order = (2, 1, 2)
+with st.spinner(f"Training ARIMA{order}..."):
     model = ARIMA(train["sales"], order=order)
     model_fit = model.fit()
 
@@ -30,7 +30,8 @@ conf_int = forecast_result.conf_int()
 
 # Compute accuracy metrics
 r2 = r2_score(test["sales"], forecast)
-rmse = mean_squared_error(test["sales"], forecast, squared=False)
+mse = mean_squared_error(test["sales"], forecast)
+rmse = np.sqrt(mse)                    # ← compute RMSE manually
 mae = mean_absolute_error(test["sales"], forecast)
 mape = np.mean(np.abs((test["sales"] - forecast) / test["sales"])) * 100
 
@@ -39,10 +40,22 @@ st.write("### Forecast vs Actual (Last 52 Weeks)")
 fig, ax = plt.subplots(figsize=(10, 5))
 ax.plot(test.index, test["sales"], label="Actual", color="black")
 ax.plot(test.index, forecast, label="Forecast", color="blue")
-ax.fill_between(test.index, conf_int.iloc[:, 0], conf_int.iloc[:, 1], color='blue', alpha=0.2, label="95% CI")
-ax.set_title("ARIMA Forecast (52 weeks)")
+ax.fill_between(test.index,
+                conf_int.iloc[:, 0],
+                conf_int.iloc[:, 1],
+                alpha=0.2,
+                label="95% CI")
+ax.set_title("ARIMA Forecast (52 Weeks)")
 ax.legend()
 st.pyplot(fig)
+
+# Display metrics
+st.write("### Model Performance")
+st.metric("R²", f"{r2:.3f}")
+st.metric("RMSE", f"{rmse:.2f}")
+st.metric("MAE", f"{mae:.2f}")
+st.metric("MAPE", f"{mape:.2f}%")
+
 
 # Display metrics
 st.write("### Model Performance")
