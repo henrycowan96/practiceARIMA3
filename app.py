@@ -19,7 +19,7 @@ train = df.iloc[:-52]
 test  = df.iloc[-52:]
 
 # ---- Fit ARIMA Model ----
-order = (2, 0, 2)  # Replace with best order from auto_arima if needed
+order = (3, 1, 2)  # Replace with best order from auto_arima if needed
 
 with st.spinner(f"Training ARIMA{order}..."):
     model = ARIMA(train["sales"], order=order)
@@ -31,6 +31,24 @@ forecast = forecast_result.predicted_mean
 conf_int = forecast_result.conf_int()
 forecast.index = test.index
 conf_int.index = test.index
+
+# ---- Download Button ----
+download_df = pd.DataFrame({
+    "date": forecast.index,
+    "forecasted_sales": forecast.values,
+    "ci_lower_95": conf_int.iloc[:, 0].values,
+    "ci_upper_95": conf_int.iloc[:, 1].values
+})
+download_df.set_index("date", inplace=True)
+
+csv = download_df.to_csv().encode('utf-8')
+
+st.download_button(
+    label="Download Forecast CSV",
+    data=csv,
+    file_name="chocolate_sales_forecast.csv",
+    mime="text/csv"
+)
 
 # ---- User selects week ----
 st.write("### Select a Week to View Forecast Details")
@@ -73,4 +91,3 @@ col1.metric("R²",   f"{r2:.3f}")
 col2.metric("RMSE", f"{rmse:.2f}")
 col3.metric("MAE",  f"{mae:.2f}")
 col4.metric("MAPE", f"{mape:.2f}%")
-
