@@ -59,3 +59,4 @@ col1.metric("R²",   f"{r2:.3f}")
 col2.metric("RMSE", f"{rmse:.2f}")
 col3.metric("MAE",  f"{mae:.2f}")
 col4.metric("MAPE", f"{mape:.2f}%")
+
