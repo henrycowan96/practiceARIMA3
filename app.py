@@ -39,7 +39,7 @@ conf_int_rounded = conf_int.round(2)
 
 # ------------------------------ Forecast Plot for 2025 ------------------------------
 st.write("## Forecast for 2025")
-fig_forecast, ax_forecast = plt.subplots(figsize=(10, 5))
+fig_forecast, ax_forecast = plt.subplots(figsize=(10, 4))
 ax_forecast.plot(forecast_rounded.index, forecast_rounded, label="Forecasted Sales", color="blue")
 ax_forecast.fill_between(
     forecast_rounded.index,
@@ -52,6 +52,7 @@ ax_forecast.set_title("Projected Chocolate Sales for 2025")
 ax_forecast.set_ylabel("Sales ($)")
 ax_forecast.set_xlabel("Week")
 ax_forecast.legend()
+plt.tight_layout()
 st.pyplot(fig_forecast)
 
 # ------------------------------ 2025 Calendar Week Selector ------------------------------
@@ -116,28 +117,32 @@ st.write("## Residual Diagnostics")
 
 residuals = model_fit.resid
 
-fig_resid, ax_resid = plt.subplots(figsize=(10, 3))
+fig_resid, ax_resid = plt.subplots(figsize=(10, 4))
 ax_resid.plot(residuals)
 ax_resid.set_title("Residuals Over Time")
 ax_resid.set_ylabel("Residual")
 ax_resid.grid(True)
+plt.tight_layout()
 st.pyplot(fig_resid)
 
-fig_hist, ax_hist = plt.subplots(figsize=(7, 4))
+fig_hist, ax_hist = plt.subplots(figsize=(10, 4))
 ax_hist.hist(residuals, bins=20, edgecolor="k", alpha=0.7)
 ax_hist.set_title("Histogram of Residuals")
 ax_hist.set_xlabel("Residual")
 ax_hist.set_ylabel("Frequency")
+plt.tight_layout()
 st.pyplot(fig_hist)
 
 fig_qq, ax_qq = plt.subplots(figsize=(6, 6))
 stats.probplot(residuals, dist="norm", plot=ax_qq)
 ax_qq.set_title("Q-Q Plot of Residuals")
+plt.tight_layout()
 st.pyplot(fig_qq)
 
 fig_acf, ax_acf = plt.subplots(figsize=(10, 4))
 plot_acf(residuals, ax=ax_acf, lags=40)
 ax_acf.set_title("Autocorrelation (ACF) of Residuals")
+plt.tight_layout()
 st.pyplot(fig_acf)
 
 # ------------------------------ Forecast for Test Period (2024) ------------------------------
@@ -165,7 +170,7 @@ col4.metric("MAPE", f"{mape:.2f}%")
 
 # ------------------------------ Forecast vs Actual Plot ------------------------------
 st.write("## Forecast vs Actual Sales (2024)")
-fig_test, ax_test = plt.subplots(figsize=(10, 5))
+fig_test, ax_test = plt.subplots(figsize=(10, 4))
 ax_test.plot(test.index, test["sales"], label="Actual Sales", color="black")
 ax_test.plot(test_forecast_rounded.index, test_forecast_rounded, label="Forecasted Sales", color="blue")
 ax_test.fill_between(
@@ -176,5 +181,8 @@ ax_test.fill_between(
     label="90% Confidence Interval"
 )
 ax_test.set_title("ARIMA Forecast vs Actual (Test Period: Last 52 Weeks)")
+ax_test.set_ylabel("Sales ($)")
+ax_test.set_xlabel("Week")
 ax_test.legend()
+plt.tight_layout()
 st.pyplot(fig_test)
