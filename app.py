@@ -5,45 +5,60 @@ import matplotlib.pyplot as plt
 from statsmodels.tsa.statespace.sarimax import SARIMAX
 from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
 
-# ---- Load Data ----
-df = pd.read_csv("chocolate_sales.csv", parse_dates=["date"])
-df.set_index("date", inplace=True)
+# --- 1) Cache the data load so it never reloads on every rerun ---
+@st.cache_data
+def load_data(path: str) -> pd.DataFrame:
+    df = pd.read_csv(path, parse_dates=["date"])
+    df.set_index("date", inplace=True)
+    return df
 
-# ---- Streamlit App ----
-st.title("Chocolate Sales Forecast (SARIMAX)")
+# --- 2) Cache & memoize the model fit to avoid retraining unless the data or orders change ---
+@st.cache_resource
+def fit_sarimax(series: pd.Series,
+                order: tuple,
+                seasonal_order: tuple,
+                maxiter: int = 50) -> SARIMAX:
+    """Fit SARIMAX with limited iterations for speed."""
+    model = SARIMAX(
+        series,
+        order=order,
+        seasonal_order=seasonal_order,
+        enforce_stationarity=False,
+        enforce_invertibility=False
+    )
+    return model.fit(disp=False, maxiter=maxiter)
+
+# --- Load once ---
+df = load_data("chocolate_sales.csv")
+
+# --- Streamlit UI ---
+st.title("Chocolate Sales Forecast (Fast SARIMAX)")
 st.write("### Historical Weekly Sales")
 st.line_chart(df["sales"])
 
-# ---- Train/Test Split ----
-train = df.iloc[:-52]   # first ~2 years
-test  = df.iloc[-52:]   # last year
+# --- Split ---
+train = df.iloc[:-52]
+test  = df.iloc[-52:]
 
-# ---- Fit Seasonal ARIMA (SARIMAX) ----
-# non‑seasonal order (p, d, q) = (1, 1, 1)
-# seasonal order  (P, D, Q, s) = (1, 1, 1, 52)
-with st.spinner("Training SARIMAX(1,1,1)x(1,1,1,52)…"):
-    model = SARIMAX(
-        train["sales"],
-        order=(1, 1, 1),
-        seasonal_order=(1, 1, 1, 52),
-        enforce_stationarity=False,
-        enforce_invertibility=False,
-    )
-    fit = model.fit(disp=False)
+# --- Fit (cached) ---
+order = (1, 1, 1)
+seasonal_order = (1, 1, 1, 52)
+with st.spinner("Training SARIMAX…"):
+    fit = fit_sarimax(train["sales"], order, seasonal_order)
 
-# ---- Forecast 52 Weeks ----
-forecast_res = fit.get_forecast(steps=52)
-forecast     = forecast_res.predicted_mean
-conf_int     = forecast_res.conf_int()
+# --- Forecast ---
+fcast_res = fit.get_forecast(steps=52)
+forecast   = fcast_res.predicted_mean
+conf_int   = fcast_res.conf_int()
 
-# ---- Compute Metrics ----
+# --- Metrics ---
 r2   = r2_score(test["sales"], forecast)
 mse  = mean_squared_error(test["sales"], forecast)
 rmse = np.sqrt(mse)
 mae  = mean_absolute_error(test["sales"], forecast)
 mape = np.mean(np.abs((test["sales"] - forecast) / test["sales"])) * 100
 
-# ---- Plot Forecast vs Actual ----
+# --- Plot ---
 st.write("### Forecast vs Actual (Last 52 Weeks)")
 fig, ax = plt.subplots(figsize=(10, 5))
 ax.plot(test.index, test["sales"], label="Actual", color="black")
@@ -59,11 +74,10 @@ ax.set_title("SARIMAX Forecast (52 Weeks)")
 ax.legend()
 st.pyplot(fig)
 
-# ---- Display Metrics ----
+# --- Display Metrics ---
 st.write("### Model Performance")
 c1, c2, c3, c4 = st.columns(4)
 c1.metric("R²",   f"{r2:.3f}")
 c2.metric("RMSE", f"{rmse:.2f}")
 c3.metric("MAE",  f"{mae:.2f}")
 c4.metric("MAPE", f"{mape:.2f}%")
-
