@@ -22,7 +22,7 @@ test  = df.iloc[-52:]
 log_train = np.log(train["sales"])
 
 # ---- Fit ARIMA Model ----
-order = (3, 1, 2)  # Replace with best order from auto_arima if known
+order = (2, 0, 2)  # Replace with best order from auto_arima if known
 
 with st.spinner(f"Training ARIMA{order} on log-transformed data..."):
     model = ARIMA(log_train, order=order)
