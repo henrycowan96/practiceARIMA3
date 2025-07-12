@@ -21,7 +21,7 @@ train = df.iloc[:-52]
 test  = df.iloc[-52:]
 
 # ---- Fit ARIMA Model ----
-order = (2, 0, 2)  # Replace with best order from auto_arima if needed
+order = (3, 1, 2)  # Replace with best order from auto_arima if needed
 
 with st.spinner(f"Training ARIMA{order}..."):
     model = ARIMA(train["sales"], order=order)
@@ -61,7 +61,6 @@ st.write("### Residual Diagnostics")
 
 residuals = model_fit.resid
 
-# Plot residuals over time
 fig_resid, ax_resid = plt.subplots(figsize=(10, 3))
 ax_resid.plot(residuals)
 ax_resid.set_title("Residuals Over Time")
@@ -69,7 +68,6 @@ ax_resid.set_ylabel("Residual")
 ax_resid.grid(True)
 st.pyplot(fig_resid)
 
-# Histogram of residuals
 fig_hist, ax_hist = plt.subplots(figsize=(7, 4))
 ax_hist.hist(residuals, bins=20, edgecolor="k", alpha=0.7)
 ax_hist.set_title("Histogram of Residuals")
@@ -77,28 +75,38 @@ ax_hist.set_xlabel("Residual")
 ax_hist.set_ylabel("Frequency")
 st.pyplot(fig_hist)
 
-# Q-Q plot for residuals normality
 fig_qq, ax_qq = plt.subplots(figsize=(6, 6))
 stats.probplot(residuals, dist="norm", plot=ax_qq)
 ax_qq.set_title("Q-Q Plot of Residuals")
 st.pyplot(fig_qq)
 
-# ACF plot for residuals
 fig_acf, ax_acf = plt.subplots(figsize=(10, 4))
 plot_acf(residuals, ax=ax_acf, lags=40)
 ax_acf.set_title("ACF Plot of Residuals")
 st.pyplot(fig_acf)
 
-# ---- User selects week ----
-st.write("### Select a Week to View Forecast Details")
-week_num = st.slider("Choose a week number (1 = next week):", 1, 52, 1)
-selected_date = forecast_rounded.index[week_num - 1]
-selected_forecast = forecast_rounded[selected_date]
-selected_ci = conf_int_rounded.loc[selected_date]
+# ---- Date Picker ----
+st.write("### Select a Date to View Forecast Details")
+selected_date = st.date_input(
+    "Pick a forecast date:",
+    min_value=forecast_rounded.index.min().date(),
+    max_value=forecast_rounded.index.max().date(),
+    value=forecast_rounded.index.min().date()
+)
 
-st.write(f"#### Week {week_num} ({selected_date.date()}):")
-st.metric("Forecasted Sales", f"{selected_forecast:.2f}")
-st.write(f"90% Confidence Interval: **[{selected_ci[0]:.2f}, {selected_ci[1]:.2f}]**")
+selected_date = pd.to_datetime(selected_date)
+
+if selected_date not in forecast_rounded.index:
+    st.error("Selected date is out of forecast range. Please select a valid date.")
+    selected_date_for_plot = forecast_rounded.index.min()
+else:
+    selected_date_for_plot = selected_date
+    selected_forecast = forecast_rounded[selected_date]
+    selected_ci = conf_int_rounded.loc[selected_date]
+
+    st.write(f"#### Forecast for {selected_date.date()}:")
+    st.metric("Forecasted Sales", f"{selected_forecast:.2f}")
+    st.write(f"90% Confidence Interval: **[{selected_ci[0]:.2f}, {selected_ci[1]:.2f}]**")
 
 # ---- Plot Forecast vs Actual ----
 st.write("### Forecast vs Actual (Last 52 Weeks)")
@@ -112,7 +120,7 @@ ax.fill_between(
     alpha=0.2,
     label="90% CI"
 )
-ax.axvline(x=selected_date, color="red", linestyle="--", label=f"Week {week_num}")
+ax.axvline(x=selected_date_for_plot, color="red", linestyle="--", label=f"Selected Date")
 ax.set_title("ARIMA Forecast (52 Weeks)")
 ax.legend()
 st.pyplot(fig)
