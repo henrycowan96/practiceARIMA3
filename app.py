@@ -19,7 +19,7 @@ train = df.iloc[:-52]
 test  = df.iloc[-52:]
 
 # ---- Fit ARIMA Model ----
-order = (3, 1, 2)  # Replace with best order from auto_arima if needed
+order = (2, 0, 2)  # Replace with best order from auto_arima if needed
 
 with st.spinner(f"Training ARIMA{order}..."):
     model = ARIMA(train["sales"], order=order)
