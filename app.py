@@ -4,6 +4,8 @@ import streamlit as st
 import matplotlib.pyplot as plt
 from statsmodels.tsa.arima.model import ARIMA
 from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
+from statsmodels.graphics.tsaplots import plot_acf
+import scipy.stats as stats
 
 # ---- Load Data ----
 df = pd.read_csv("chocolate_sales.csv", parse_dates=["date"])
@@ -19,11 +21,11 @@ train = df.iloc[:-52]
 test  = df.iloc[-52:]
 
 # ---- Fit ARIMA Model ----
-order = (2, 0, 2)  # Replace with best order from auto_arima if needed
+order = (3, 1, 2)  # Replace with best order from auto_arima if needed
 
 with st.spinner(f"Training ARIMA{order}..."):
     model = ARIMA(train["sales"], order=order)
-    model_fit = model.fit()  # Removed method="css-mle"
+    model_fit = model.fit()
 
 # ---- Forecast with narrower confidence interval (90%) ----
 forecast_result = model_fit.get_forecast(steps=52, alpha=0.10)  # 90% CI
@@ -54,6 +56,39 @@ st.download_button(
     mime="text/csv"
 )
 
+# ---- Residual Diagnostics ----
+st.write("### Residual Diagnostics")
+
+residuals = model_fit.resid
+
+# Plot residuals over time
+fig_resid, ax_resid = plt.subplots(figsize=(10, 3))
+ax_resid.plot(residuals)
+ax_resid.set_title("Residuals Over Time")
+ax_resid.set_ylabel("Residual")
+ax_resid.grid(True)
+st.pyplot(fig_resid)
+
+# Histogram of residuals
+fig_hist, ax_hist = plt.subplots(figsize=(7, 4))
+ax_hist.hist(residuals, bins=20, edgecolor="k", alpha=0.7)
+ax_hist.set_title("Histogram of Residuals")
+ax_hist.set_xlabel("Residual")
+ax_hist.set_ylabel("Frequency")
+st.pyplot(fig_hist)
+
+# Q-Q plot for residuals normality
+fig_qq, ax_qq = plt.subplots(figsize=(6, 6))
+stats.probplot(residuals, dist="norm", plot=ax_qq)
+ax_qq.set_title("Q-Q Plot of Residuals")
+st.pyplot(fig_qq)
+
+# ACF plot for residuals
+fig_acf, ax_acf = plt.subplots(figsize=(10, 4))
+plot_acf(residuals, ax=ax_acf, lags=40)
+ax_acf.set_title("ACF Plot of Residuals")
+st.pyplot(fig_acf)
+
 # ---- User selects week ----
 st.write("### Select a Week to View Forecast Details")
 week_num = st.slider("Choose a week number (1 = next week):", 1, 52, 1)
@@ -69,7 +104,7 @@ st.write(f"90% Confidence Interval: **[{selected_ci[0]:.2f}, {selected_ci[1]:.2f
 st.write("### Forecast vs Actual (Last 52 Weeks)")
 fig, ax = plt.subplots(figsize=(10, 5))
 ax.plot(test.index, test["sales"], label="Actual", color="black")
-ax.plot(test.index, forecast_rounded, label="Forecast", color="blue")
+ax.plot(test.index, forecast_rounded, label="ARIMA Forecast", color="blue")
 ax.fill_between(
     test.index,
     conf_int_rounded.iloc[:, 0],
@@ -95,4 +130,5 @@ col1.metric("R²",   f"{r2:.3f}")
 col2.metric("RMSE", f"{rmse:.2f}")
 col3.metric("MAE",  f"{mae:.2f}")
 col4.metric("MAPE", f"{mape:.2f}%")
+
 
