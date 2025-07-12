@@ -35,18 +35,17 @@ conf_int_rounded = conf_int.round(2)
 
 # ------------------------------ Tabs ------------------------------
 tabs = st.tabs([
-    "2025 Forecast & Week Lookup",
-    "2025 Summary + Download",
+    "2025 Forecast & Summary",
     "2024 Model Evaluation",
     "Residual Diagnostics",
     "Historical Sales Lookup"
 ])
 
-# ------------------------------ Tab 1: 2025 Forecast & Selector ------------------------------
+# ------------------------------ Tab 1: 2025 Forecast, Lookup, Summary, Download ------------------------------
 with tabs[0]:
     st.subheader("Forecasted Chocolate Sales for 2025")
 
-    # Plot forecast for full year
+    # Forecast Plot
     fig_forecast, ax_forecast = plt.subplots(figsize=(10, 4))
     ax_forecast.plot(forecast_rounded.index, forecast_rounded, label="Forecasted Sales", color="blue")
     ax_forecast.fill_between(
@@ -63,7 +62,7 @@ with tabs[0]:
     plt.tight_layout()
     st.pyplot(fig_forecast)
 
-    # Week lookup
+    # Week Selector
     st.subheader("Select a Week in 2025")
     selected_date = st.date_input(
         "Choose a forecast week:",
@@ -82,8 +81,7 @@ with tabs[0]:
         st.metric("Forecasted Sales", f"{selected_forecast:.2f}")
         st.write(f"90% Confidence Interval: **[{selected_ci[0]:.2f}, {selected_ci[1]:.2f}]**")
 
-# ------------------------------ Tab 2: Summary + Download ------------------------------
-with tabs[1]:
+    # Summary Metrics
     st.subheader("2025 Forecast Summary")
     total_sales = forecast_rounded.sum()
     avg_sales = forecast_rounded.mean()
@@ -98,6 +96,7 @@ with tabs[1]:
     col3.metric("Min Weekly Sales", f"{min_sales:.2f}", f"Week of {min_week}")
     col4.metric("Max Weekly Sales", f"{max_sales:.2f}", f"Week of {max_week}")
 
+    # Download CSV
     download_df = pd.DataFrame({
         "date": forecast_rounded.index,
         "forecasted_sales": forecast_rounded.values,
@@ -108,8 +107,8 @@ with tabs[1]:
     csv = download_df.to_csv().encode('utf-8')
     st.download_button("Download 2025 Forecast as CSV", csv, "chocolate_sales_forecast_2025.csv", "text/csv")
 
-# ------------------------------ Tab 3: 2024 Evaluation ------------------------------
-with tabs[2]:
+# ------------------------------ Tab 2: 2024 Evaluation ------------------------------
+with tabs[1]:
     st.subheader("Model Performance on 2024 Actual Data")
     test_forecast_result = model_fit.get_forecast(steps=52, alpha=0.10)
     test_forecast = test_forecast_result.predicted_mean
@@ -147,8 +146,8 @@ with tabs[2]:
     plt.tight_layout()
     st.pyplot(fig_eval)
 
-# ------------------------------ Tab 4: Residual Diagnostics ------------------------------
-with tabs[3]:
+# ------------------------------ Tab 3: Residual Diagnostics ------------------------------
+with tabs[2]:
     st.subheader("Residual Diagnostics")
     residuals = model_fit.resid
 
@@ -180,8 +179,8 @@ with tabs[3]:
     plt.tight_layout()
     st.pyplot(fig_acf)
 
-# ------------------------------ Tab 5: Historical Sales ------------------------------
-with tabs[4]:
+# ------------------------------ Tab 4: Historical Sales Lookup ------------------------------
+with tabs[3]:
     st.subheader("Historical Weekly Sales")
     st.line_chart(df["sales"])
 
@@ -199,4 +198,4 @@ with tabs[4]:
         st.warning("Selected date is not in the dataset.")
     else:
         actual_sales = df.loc[historical_date, "sales"]
-        st.metric("Actual Sales", f"{actual_sales:.2f}", label_visibility="visible")
+        st.metric("Actual Sales", f"{actual_sales:.2f}")
