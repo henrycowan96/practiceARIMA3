@@ -18,12 +18,12 @@ st.line_chart(df["sales"])
 train = df.iloc[:-52]
 test  = df.iloc[-52:]
 
-# ---- Fit ARIMA Model with css-mle ----
-order = (2, 0, 2)  # Replace with best order from auto_arima if needed
+# ---- Fit ARIMA Model ----
+order = (3, 1, 2)  # Replace with best order from auto_arima if needed
 
-with st.spinner(f"Training ARIMA{order} with css-mle..."):
+with st.spinner(f"Training ARIMA{order}..."):
     model = ARIMA(train["sales"], order=order)
-    model_fit = model.fit(method="css-mle")
+    model_fit = model.fit()  # Removed method="css-mle"
 
 # ---- Forecast ----
 forecast_result = model_fit.get_forecast(steps=52)
