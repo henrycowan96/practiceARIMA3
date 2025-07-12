@@ -10,7 +10,7 @@ df = pd.read_csv("chocolate_sales.csv", parse_dates=["date"])
 df.set_index("date", inplace=True)
 
 # ---- Streamlit App ----
-st.title("Chocolate Sales Forecast (Log-Transformed ARIMA)")
+st.title("Chocolate Sales Forecast (Optimized ARIMA)")
 st.write("### Historical Weekly Sales")
 st.line_chart(df["sales"])
 
@@ -18,23 +18,17 @@ st.line_chart(df["sales"])
 train = df.iloc[:-52]
 test  = df.iloc[-52:]
 
-# ---- Log-Transform Training Data ----
-log_train = np.log(train["sales"])
+# ---- Fit ARIMA Model with css-mle ----
+order = (2, 0, 2)  # Replace with best order from auto_arima if needed
 
-# ---- Fit ARIMA Model ----
-order = (2, 0, 2)  # Replace with best order from auto_arima if known
+with st.spinner(f"Training ARIMA{order} with css-mle..."):
+    model = ARIMA(train["sales"], order=order)
+    model_fit = model.fit(method="css-mle")
 
-with st.spinner(f"Training ARIMA{order} on log-transformed data..."):
-    model = ARIMA(log_train, order=order)
-    model_fit = model.fit()
-
-# ---- Forecast & Inverse Transform ----
+# ---- Forecast ----
 forecast_result = model_fit.get_forecast(steps=52)
-forecast_log = forecast_result.predicted_mean
-conf_int_log = forecast_result.conf_int()
-
-forecast = np.exp(forecast_log)
-conf_int = np.exp(conf_int_log)
+forecast = forecast_result.predicted_mean
+conf_int = forecast_result.conf_int()
 forecast.index = test.index
 conf_int.index = test.index
 
@@ -62,7 +56,7 @@ ax.fill_between(
     label="95% CI"
 )
 ax.axvline(x=selected_date, color="red", linestyle="--", label=f"Week {week_num}")
-ax.set_title("ARIMA Forecast (Log-Transformed, 52 Weeks)")
+ax.set_title("ARIMA Forecast (52 Weeks)")
 ax.legend()
 st.pyplot(fig)
 
