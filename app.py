@@ -10,7 +10,7 @@ df = pd.read_csv("chocolate_sales.csv", parse_dates=["date"])
 df.set_index("date", inplace=True)
 
 # ---- Streamlit App ----
-st.title("Chocolate Sales Forecast (Optimized ARIMA)")
+st.title("Chocolate Sales Forecast (Log-Transformed ARIMA)")
 st.write("### Historical Weekly Sales")
 st.line_chart(df["sales"])
 
@@ -18,18 +18,24 @@ st.line_chart(df["sales"])
 train = df.iloc[:-52]
 test  = df.iloc[-52:]
 
-# ---- Fit ARIMA Model ----
-order = (2, 0, 2)  # ← Replace with best order from auto_arima
+# ---- Log-Transform Training Data ----
+log_train = np.log(train["sales"])
 
-with st.spinner(f"Training ARIMA{order}..."):
-    model = ARIMA(train["sales"], order=order)
+# ---- Fit ARIMA Model ----
+order = (3, 1, 2)  # Replace with best order from auto_arima if known
+
+with st.spinner(f"Training ARIMA{order} on log-transformed data..."):
+    model = ARIMA(log_train, order=order)
     model_fit = model.fit()
 
-# ---- Forecast 52 weeks ----
+# ---- Forecast & Inverse Transform ----
 forecast_result = model_fit.get_forecast(steps=52)
-forecast = forecast_result.predicted_mean
-conf_int = forecast_result.conf_int()
-forecast.index = test.index  # align forecast index to match actual dates
+forecast_log = forecast_result.predicted_mean
+conf_int_log = forecast_result.conf_int()
+
+forecast = np.exp(forecast_log)
+conf_int = np.exp(conf_int_log)
+forecast.index = test.index
 conf_int.index = test.index
 
 # ---- User selects week ----
@@ -56,18 +62,18 @@ ax.fill_between(
     label="95% CI"
 )
 ax.axvline(x=selected_date, color="red", linestyle="--", label=f"Week {week_num}")
-ax.set_title("ARIMA Forecast (52 Weeks)")
+ax.set_title("ARIMA Forecast (Log-Transformed, 52 Weeks)")
 ax.legend()
 st.pyplot(fig)
 
 # ---- Display Overall Metrics ----
-st.write("### Model Performance")
 r2   = r2_score(test["sales"], forecast)
 mse  = mean_squared_error(test["sales"], forecast)
 rmse = np.sqrt(mse)
 mae  = mean_absolute_error(test["sales"], forecast)
 mape = np.mean(np.abs((test["sales"] - forecast) / test["sales"])) * 100
 
+st.write("### Model Performance")
 col1, col2, col3, col4 = st.columns(4)
 col1.metric("R²",   f"{r2:.3f}")
 col2.metric("RMSE", f"{rmse:.2f}")
