@@ -21,27 +21,42 @@ train = df.iloc[:-52]
 test  = df.iloc[-52:]
 
 # ---- Fit ARIMA Model ----
-order = (2, 0, 2)  # Replace with best order from auto_arima if needed
+order = (3, 1, 2)  # Replace with best order from auto_arima if needed
 
 with st.spinner(f"Training ARIMA{order}..."):
     model = ARIMA(train["sales"], order=order)
     model_fit = model.fit()
 
-# ---- Forecast with narrower confidence interval (90%) ----
+# ---- Forecast for NEXT YEAR (2025) ----
 forecast_result = model_fit.get_forecast(steps=52, alpha=0.10)  # 90% CI
 forecast = forecast_result.predicted_mean
 conf_int = forecast_result.conf_int()
 
-# --- SET forecast index to all Sundays in 2025 ---
+# Set forecast index to all Sundays in 2025
 forecast_dates = pd.date_range(start="2025-01-05", periods=52, freq='W-SUN')
 forecast.index = forecast_dates
 conf_int.index = forecast_dates
 
+# ---- Forecast for TEST PERIOD (last 52 weeks in dataset, 2024) ----
+test_forecast_result = model_fit.get_forecast(steps=52, alpha=0.10)
+test_forecast = test_forecast_result.predicted_mean
+test_conf_int = test_forecast_result.conf_int()
+test_forecast.index = test.index
+
 # Round forecast and confidence intervals to 2 decimals
 forecast_rounded = forecast.round(2)
 conf_int_rounded = conf_int.round(2)
+test_forecast_rounded = test_forecast.round(2)
+test_conf_int_rounded = test_conf_int.round(2)
 
-# ---- Next Year Forecast Summary ----
+# ---- Calculate metrics on TEST PERIOD forecast ----
+r2   = r2_score(test["sales"], test_forecast_rounded)
+mse  = mean_squared_error(test["sales"], test_forecast_rounded)
+rmse = np.sqrt(mse)
+mae  = mean_absolute_error(test["sales"], test_forecast_rounded)
+mape = np.mean(np.abs((test["sales"] - test_forecast_rounded) / test["sales"])) * 100
+
+# ---- Next Year Forecast Summary (2025) ----
 total_next_year_sales = forecast_rounded.sum()
 average_weekly_sales = forecast_rounded.mean()
 min_week_sales = forecast_rounded.min()
@@ -56,7 +71,7 @@ col2.metric("Average Weekly Sales", f"{average_weekly_sales:,.2f}")
 col3.metric("Min Weekly Sales", f"{min_week_sales:,.2f}", f"Week of {min_week_date}")
 col4.metric("Max Weekly Sales", f"{max_week_sales:,.2f}", f"Week of {max_week_date}")
 
-# ---- Date Picker for Next Year Forecast ----
+# ---- Date Picker for Next Year Forecast (2025) ----
 st.write("### Select a Date from Next Year Forecast")
 selected_date = st.date_input(
     "Pick a forecast date:",
@@ -126,30 +141,24 @@ plot_acf(residuals, ax=ax_acf, lags=40)
 ax_acf.set_title("ACF Plot of Residuals")
 st.pyplot(fig_acf)
 
-# ---- Plot Forecast vs Actual ----
+# ---- Plot Forecast vs Actual for TEST PERIOD (2024) ----
 st.write("### Forecast vs Actual (Last 52 Weeks)")
 fig, ax = plt.subplots(figsize=(10, 5))
 ax.plot(test.index, test["sales"], label="Actual", color="black")
-ax.plot(forecast_rounded.index, forecast_rounded, label="ARIMA Forecast", color="blue")
+ax.plot(test_forecast_rounded.index, test_forecast_rounded, label="ARIMA Forecast", color="blue")
 ax.fill_between(
-    forecast_rounded.index,
-    conf_int_rounded.iloc[:, 0],
-    conf_int_rounded.iloc[:, 1],
+    test_forecast_rounded.index,
+    test_conf_int_rounded.iloc[:, 0],
+    test_conf_int_rounded.iloc[:, 1],
     alpha=0.2,
     label="90% CI"
 )
 ax.axvline(x=selected_date_for_plot, color="red", linestyle="--", label=f"Selected Date")
-ax.set_title("ARIMA Forecast (Next 52 Weeks)")
+ax.set_title("ARIMA Forecast (Last 52 Weeks - Test Period)")
 ax.legend()
 st.pyplot(fig)
 
-# ---- Display Overall Metrics ----
-r2   = r2_score(test["sales"], forecast.loc[test.index])
-mse  = mean_squared_error(test["sales"], forecast.loc[test.index])
-rmse = np.sqrt(mse)
-mae  = mean_absolute_error(test["sales"], forecast.loc[test.index])
-mape = np.mean(np.abs((test["sales"] - forecast.loc[test.index]) / test["sales"])) * 100
-
+# ---- Display Overall Metrics for TEST PERIOD ----
 st.write("### Model Performance on Last 52 Weeks of Actual Data")
 col1, col2, col3, col4 = st.columns(4)
 col1.metric("R²",   f"{r2:.3f}")
