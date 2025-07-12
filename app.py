@@ -2,7 +2,6 @@ import pandas as pd
 import numpy as np
 import streamlit as st
 import matplotlib.pyplot as plt
-from pmdarima import auto_arima
 from statsmodels.tsa.arima.model import ARIMA
 from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
 
@@ -10,35 +9,33 @@ from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
 df = pd.read_csv("chocolate_sales.csv", parse_dates=["date"])
 df.set_index("date", inplace=True)
 
-# Show raw data
 st.title("Chocolate Sales Forecast")
 st.write("### Historical Weekly Sales")
 st.line_chart(df["sales"])
 
-# Train-test split
+# Train-test split: last 52 weeks as test
 train = df.iloc[:-52]
 test = df.iloc[-52:]
 
-# Fit ARIMA model
-with st.spinner("Training ARIMA model..."):
-    stepwise_fit = auto_arima(train["sales"], seasonal=False, suppress_warnings=True, error_action="ignore")
-    order = stepwise_fit.order
+# Fit ARIMA model (manually chosen order)
+order = (2, 1, 2)  # Adjust this if needed
+with st.spinner(f"Training ARIMA model with order {order}..."):
     model = ARIMA(train["sales"], order=order)
     model_fit = model.fit()
 
-# Forecast
+# Forecast next 52 weeks
 forecast_result = model_fit.get_forecast(steps=52)
 forecast = forecast_result.predicted_mean
 conf_int = forecast_result.conf_int()
 
-# Accuracy metrics
+# Compute accuracy metrics
 r2 = r2_score(test["sales"], forecast)
 rmse = mean_squared_error(test["sales"], forecast, squared=False)
 mae = mean_absolute_error(test["sales"], forecast)
 mape = np.mean(np.abs((test["sales"] - forecast) / test["sales"])) * 100
 
-# Display forecast
-st.write("### Forecast vs Actual (last 52 weeks)")
+# Plot forecast vs actual
+st.write("### Forecast vs Actual (Last 52 Weeks)")
 fig, ax = plt.subplots(figsize=(10, 5))
 ax.plot(test.index, test["sales"], label="Actual", color="black")
 ax.plot(test.index, forecast, label="Forecast", color="blue")
