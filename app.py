@@ -25,8 +25,8 @@ with st.spinner(f"Training ARIMA{order}..."):
     model = ARIMA(train["sales"], order=order)
     model_fit = model.fit()  # Removed method="css-mle"
 
-# ---- Forecast ----
-forecast_result = model_fit.get_forecast(steps=52)
+# ---- Forecast with narrower confidence interval (90%) ----
+forecast_result = model_fit.get_forecast(steps=52, alpha=0.10)  # 90% CI
 forecast = forecast_result.predicted_mean
 conf_int = forecast_result.conf_int()
 forecast.index = test.index
@@ -36,8 +36,8 @@ conf_int.index = test.index
 download_df = pd.DataFrame({
     "date": forecast.index,
     "forecasted_sales": forecast.values,
-    "ci_lower_95": conf_int.iloc[:, 0].values,
-    "ci_upper_95": conf_int.iloc[:, 1].values
+    "ci_lower_90": conf_int.iloc[:, 0].values,
+    "ci_upper_90": conf_int.iloc[:, 1].values
 })
 download_df.set_index("date", inplace=True)
 
@@ -59,7 +59,7 @@ selected_ci = conf_int.loc[selected_date]
 
 st.write(f"#### Week {week_num} ({selected_date.date()}):")
 st.metric("Forecasted Sales", f"{selected_forecast:.2f}")
-st.write(f"95% Confidence Interval: **[{selected_ci[0]:.2f}, {selected_ci[1]:.2f}]**")
+st.write(f"90% Confidence Interval: **[{selected_ci[0]:.2f}, {selected_ci[1]:.2f}]**")
 
 # ---- Plot Forecast vs Actual ----
 st.write("### Forecast vs Actual (Last 52 Weeks)")
@@ -71,7 +71,7 @@ ax.fill_between(
     conf_int.iloc[:, 0],
     conf_int.iloc[:, 1],
     alpha=0.2,
-    label="95% CI"
+    label="90% CI"
 )
 ax.axvline(x=selected_date, color="red", linestyle="--", label=f"Week {week_num}")
 ax.set_title("ARIMA Forecast (52 Weeks)")
@@ -91,3 +91,4 @@ col1.metric("R²",   f"{r2:.3f}")
 col2.metric("RMSE", f"{rmse:.2f}")
 col3.metric("MAE",  f"{mae:.2f}")
 col4.metric("MAPE", f"{mape:.2f}%")
+
