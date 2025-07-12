@@ -31,8 +31,12 @@ with st.spinner(f"Training ARIMA{order}..."):
 forecast_result = model_fit.get_forecast(steps=52, alpha=0.10)  # 90% CI
 forecast = forecast_result.predicted_mean
 conf_int = forecast_result.conf_int()
-forecast.index = test.index
-conf_int.index = test.index
+
+# --- CORRECT: Set forecast index to future dates starting after last data date ---
+last_date = df.index.max()
+forecast_dates = pd.date_range(start=last_date + pd.Timedelta(weeks=1), periods=52, freq='W')
+forecast.index = forecast_dates
+conf_int.index = forecast_dates
 
 # Round forecast and confidence intervals to 2 decimals
 forecast_rounded = forecast.round(2)
@@ -127,31 +131,29 @@ st.pyplot(fig_acf)
 st.write("### Forecast vs Actual (Last 52 Weeks)")
 fig, ax = plt.subplots(figsize=(10, 5))
 ax.plot(test.index, test["sales"], label="Actual", color="black")
-ax.plot(test.index, forecast_rounded, label="ARIMA Forecast", color="blue")
+ax.plot(forecast_rounded.index, forecast_rounded, label="ARIMA Forecast", color="blue")
 ax.fill_between(
-    test.index,
+    forecast_rounded.index,
     conf_int_rounded.iloc[:, 0],
     conf_int_rounded.iloc[:, 1],
     alpha=0.2,
     label="90% CI"
 )
 ax.axvline(x=selected_date_for_plot, color="red", linestyle="--", label=f"Selected Date")
-ax.set_title("ARIMA Forecast (52 Weeks)")
+ax.set_title("ARIMA Forecast (Next 52 Weeks)")
 ax.legend()
 st.pyplot(fig)
 
 # ---- Display Overall Metrics ----
-r2   = r2_score(test["sales"], forecast)
-mse  = mean_squared_error(test["sales"], forecast)
+r2   = r2_score(test["sales"], forecast.loc[test.index])
+mse  = mean_squared_error(test["sales"], forecast.loc[test.index])
 rmse = np.sqrt(mse)
-mae  = mean_absolute_error(test["sales"], forecast)
-mape = np.mean(np.abs((test["sales"] - forecast) / test["sales"])) * 100
+mae  = mean_absolute_error(test["sales"], forecast.loc[test.index])
+mape = np.mean(np.abs((test["sales"] - forecast.loc[test.index]) / test["sales"])) * 100
 
-st.write("### Model Performance")
+st.write("### Model Performance on Last 52 Weeks of Actual Data")
 col1, col2, col3, col4 = st.columns(4)
 col1.metric("R²",   f"{r2:.3f}")
 col2.metric("RMSE", f"{rmse:.2f}")
 col3.metric("MAE",  f"{mae:.2f}")
 col4.metric("MAPE", f"{mape:.2f}%")
-
-
