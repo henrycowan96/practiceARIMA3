@@ -21,7 +21,7 @@ train = df.iloc[:-52]
 test  = df.iloc[-52:]
 
 # ---- Fit ARIMA Model ----
-order = (2, 0, 2)  # Replace with best order from auto_arima if needed
+order = (3, 1, 2)  # Replace with best order from auto_arima if needed
 
 with st.spinner(f"Training ARIMA{order}..."):
     model = ARIMA(train["sales"], order=order)
@@ -37,6 +37,44 @@ conf_int.index = test.index
 # Round forecast and confidence intervals to 2 decimals
 forecast_rounded = forecast.round(2)
 conf_int_rounded = conf_int.round(2)
+
+# ---- Next Year Forecast Summary ----
+total_next_year_sales = forecast_rounded.sum()
+average_weekly_sales = forecast_rounded.mean()
+min_week_sales = forecast_rounded.min()
+min_week_date = forecast_rounded.idxmin().date()
+max_week_sales = forecast_rounded.max()
+max_week_date = forecast_rounded.idxmax().date()
+
+st.write("## Next Year Forecast Summary")
+col1, col2, col3, col4 = st.columns(4)
+col1.metric("Total Forecast Sales (Next 52 Weeks)", f"{total_next_year_sales:,.2f}")
+col2.metric("Average Weekly Sales", f"{average_weekly_sales:,.2f}")
+col3.metric("Min Weekly Sales", f"{min_week_sales:,.2f}", f"Week of {min_week_date}")
+col4.metric("Max Weekly Sales", f"{max_week_sales:,.2f}", f"Week of {max_week_date}")
+
+# ---- Date Picker for Next Year Forecast ----
+st.write("### Select a Date from Next Year Forecast")
+selected_date = st.date_input(
+    "Pick a forecast date:",
+    min_value=forecast_rounded.index.min().date(),
+    max_value=forecast_rounded.index.max().date(),
+    value=forecast_rounded.index.min().date()
+)
+
+selected_date = pd.to_datetime(selected_date)
+
+if selected_date not in forecast_rounded.index:
+    st.error("Selected date is out of forecast range. Please select a valid date.")
+    selected_date_for_plot = forecast_rounded.index.min()
+else:
+    selected_date_for_plot = selected_date
+    selected_forecast = forecast_rounded[selected_date]
+    selected_ci = conf_int_rounded.loc[selected_date]
+
+    st.write(f"#### Forecast for {selected_date.date()}:")
+    st.metric("Forecasted Sales", f"{selected_forecast:.2f}")
+    st.write(f"90% Confidence Interval: **[{selected_ci[0]:.2f}, {selected_ci[1]:.2f}]**")
 
 # ---- Download Button ----
 download_df = pd.DataFrame({
@@ -84,29 +122,6 @@ fig_acf, ax_acf = plt.subplots(figsize=(10, 4))
 plot_acf(residuals, ax=ax_acf, lags=40)
 ax_acf.set_title("ACF Plot of Residuals")
 st.pyplot(fig_acf)
-
-# ---- Date Picker ----
-st.write("### Select a Date to View Forecast Details")
-selected_date = st.date_input(
-    "Pick a forecast date:",
-    min_value=forecast_rounded.index.min().date(),
-    max_value=forecast_rounded.index.max().date(),
-    value=forecast_rounded.index.min().date()
-)
-
-selected_date = pd.to_datetime(selected_date)
-
-if selected_date not in forecast_rounded.index:
-    st.error("Selected date is out of forecast range. Please select a valid date.")
-    selected_date_for_plot = forecast_rounded.index.min()
-else:
-    selected_date_for_plot = selected_date
-    selected_forecast = forecast_rounded[selected_date]
-    selected_ci = conf_int_rounded.loc[selected_date]
-
-    st.write(f"#### Forecast for {selected_date.date()}:")
-    st.metric("Forecasted Sales", f"{selected_forecast:.2f}")
-    st.write(f"90% Confidence Interval: **[{selected_ci[0]:.2f}, {selected_ci[1]:.2f}]**")
 
 # ---- Plot Forecast vs Actual ----
 st.write("### Forecast vs Actual (Last 52 Weeks)")
