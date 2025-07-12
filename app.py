@@ -11,10 +11,8 @@ import scipy.stats as stats
 df = pd.read_csv("chocolate_sales.csv", parse_dates=["date"])
 df.set_index("date", inplace=True)
 
-# ------------------------------ App Title & Sales Chart ------------------------------
-st.title("📈 Chocolate Sales Forecast (Optimized ARIMA)")
-st.write("## 📊 Historical Weekly Sales")
-st.line_chart(df["sales"])
+# ------------------------------ App Title ------------------------------
+st.title("Chocolate Sales Forecast (Optimized ARIMA)")
 
 # ------------------------------ Train/Test Split ------------------------------
 train = df.iloc[:-52]
@@ -39,28 +37,46 @@ conf_int.index = forecast_dates
 forecast_rounded = forecast.round(2)
 conf_int_rounded = conf_int.round(2)
 
-# ------------------------------ Forecast: Test Period (Last 52 Weeks) ------------------------------
-test_forecast_result = model_fit.get_forecast(steps=52, alpha=0.10)
-test_forecast = test_forecast_result.predicted_mean
-test_conf_int = test_forecast_result.conf_int()
-test_forecast.index = test.index
+# ------------------------------ Forecast Plot for 2025 ------------------------------
+st.write("## Forecast for 2025")
+fig_forecast, ax_forecast = plt.subplots(figsize=(10, 5))
+ax_forecast.plot(forecast_rounded.index, forecast_rounded, label="Forecasted Sales", color="blue")
+ax_forecast.fill_between(
+    forecast_rounded.index,
+    conf_int_rounded.iloc[:, 0],
+    conf_int_rounded.iloc[:, 1],
+    alpha=0.2,
+    label="90% Confidence Interval"
+)
+ax_forecast.set_title("Projected Chocolate Sales for 2025")
+ax_forecast.set_ylabel("Sales ($)")
+ax_forecast.set_xlabel("Week")
+ax_forecast.legend()
+st.pyplot(fig_forecast)
 
-test_forecast_rounded = test_forecast.round(2)
-test_conf_int_rounded = test_conf_int.round(2)
+# ------------------------------ 2025 Calendar Week Selector ------------------------------
+st.write("### Select a Forecast Week from 2025")
+selected_date = st.date_input(
+    "Choose a forecast week:",
+    min_value=forecast_rounded.index.min().date(),
+    max_value=forecast_rounded.index.max().date(),
+    value=forecast_rounded.index.min().date()
+)
+selected_date = pd.to_datetime(selected_date)
 
-# ------------------------------ Performance Metrics ------------------------------
-r2   = r2_score(test["sales"], test_forecast_rounded)
-mse  = mean_squared_error(test["sales"], test_forecast_rounded)
-rmse = np.sqrt(mse)
-mae  = mean_absolute_error(test["sales"], test_forecast_rounded)
-mape = np.mean(np.abs((test["sales"] - test_forecast_rounded) / test["sales"])) * 100
+if selected_date not in forecast_rounded.index:
+    st.error("Selected date is out of forecast range. Please choose a valid week.")
+else:
+    selected_forecast = forecast_rounded[selected_date]
+    selected_ci = conf_int_rounded.loc[selected_date]
 
-st.write("## 📐 Model Performance (on 2024 Actual Data)")
-col1, col2, col3, col4 = st.columns(4)
-col1.metric("R²",   f"{r2:.3f}")
-col2.metric("RMSE", f"{rmse:.2f}")
-col3.metric("MAE",  f"{mae:.2f}")
-col4.metric("MAPE", f"{mape:.2f}%")
+    st.write(f"#### Forecast for {selected_date.date()}:")
+    st.metric("Forecasted Sales", f"{selected_forecast:.2f}")
+    st.write(f"90% Confidence Interval: **[{selected_ci[0]:.2f}, {selected_ci[1]:.2f}]**")
+
+# ------------------------------ Historical Sales ------------------------------
+st.write("## Historical Weekly Sales")
+st.line_chart(df["sales"])
 
 # ------------------------------ Forecast Summary for 2025 ------------------------------
 total_next_year_sales = forecast_rounded.sum()
@@ -70,33 +86,12 @@ min_week_date = forecast_rounded.idxmin().date()
 max_week_sales = forecast_rounded.max()
 max_week_date = forecast_rounded.idxmax().date()
 
-st.write("## 📅 Next Year Forecast Summary (2025)")
+st.write("## 2025 Forecast Summary")
 col1, col2, col3, col4 = st.columns(4)
 col1.metric("Total Forecast Sales", f"{total_next_year_sales:,.2f}")
 col2.metric("Average Weekly Sales", f"{average_weekly_sales:,.2f}")
 col3.metric("Min Weekly Sales", f"{min_week_sales:,.2f}", f"Week of {min_week_date}")
 col4.metric("Max Weekly Sales", f"{max_week_sales:,.2f}", f"Week of {max_week_date}")
-
-# ------------------------------ Interactive Date Selection ------------------------------
-st.write("### 📌 View Forecast for a Specific Week in 2025")
-selected_date = st.date_input(
-    "Select a forecast week:",
-    min_value=forecast_rounded.index.min().date(),
-    max_value=forecast_rounded.index.max().date(),
-    value=forecast_rounded.index.min().date()
-)
-
-selected_date = pd.to_datetime(selected_date)
-
-if selected_date not in forecast_rounded.index:
-    st.error("Selected date is out of forecast range. Please choose a valid week.")
-else:
-    selected_forecast = forecast_rounded[selected_date]
-    selected_ci = conf_int_rounded.loc[selected_date]
-
-    st.write(f"#### 📆 Forecast for {selected_date.date()}:")
-    st.metric("Forecasted Sales", f"{selected_forecast:.2f}")
-    st.write(f"90% Confidence Interval: **[{selected_ci[0]:.2f}, {selected_ci[1]:.2f}]**")
 
 # ------------------------------ Download Forecast ------------------------------
 download_df = pd.DataFrame({
@@ -110,14 +105,14 @@ download_df.set_index("date", inplace=True)
 csv = download_df.to_csv().encode('utf-8')
 
 st.download_button(
-    label="📥 Download 2025 Forecast as CSV",
+    label="Download 2025 Forecast as CSV",
     data=csv,
     file_name="chocolate_sales_forecast_2025.csv",
     mime="text/csv"
 )
 
 # ------------------------------ Residual Diagnostics ------------------------------
-st.write("## 🔍 Residual Diagnostics")
+st.write("## Residual Diagnostics")
 
 residuals = model_fit.resid
 
@@ -145,18 +140,41 @@ plot_acf(residuals, ax=ax_acf, lags=40)
 ax_acf.set_title("Autocorrelation (ACF) of Residuals")
 st.pyplot(fig_acf)
 
-# ------------------------------ Plot: Forecast vs Actual ------------------------------
-st.write("## 🧪 Model Forecast vs Actual Sales (2024)")
-fig, ax = plt.subplots(figsize=(10, 5))
-ax.plot(test.index, test["sales"], label="Actual Sales", color="black")
-ax.plot(test_forecast_rounded.index, test_forecast_rounded, label="Forecasted Sales", color="blue")
-ax.fill_between(
+# ------------------------------ Forecast for Test Period (2024) ------------------------------
+test_forecast_result = model_fit.get_forecast(steps=52, alpha=0.10)
+test_forecast = test_forecast_result.predicted_mean
+test_conf_int = test_forecast_result.conf_int()
+test_forecast.index = test.index
+
+test_forecast_rounded = test_forecast.round(2)
+test_conf_int_rounded = test_conf_int.round(2)
+
+# ------------------------------ Performance Metrics ------------------------------
+r2   = r2_score(test["sales"], test_forecast_rounded)
+mse  = mean_squared_error(test["sales"], test_forecast_rounded)
+rmse = np.sqrt(mse)
+mae  = mean_absolute_error(test["sales"], test_forecast_rounded)
+mape = np.mean(np.abs((test["sales"] - test_forecast_rounded) / test["sales"])) * 100
+
+st.write("## Model Performance (on 2024 Actual Data)")
+col1, col2, col3, col4 = st.columns(4)
+col1.metric("R²",   f"{r2:.3f}")
+col2.metric("RMSE", f"{rmse:.2f}")
+col3.metric("MAE",  f"{mae:.2f}")
+col4.metric("MAPE", f"{mape:.2f}%")
+
+# ------------------------------ Forecast vs Actual Plot ------------------------------
+st.write("## Forecast vs Actual Sales (2024)")
+fig_test, ax_test = plt.subplots(figsize=(10, 5))
+ax_test.plot(test.index, test["sales"], label="Actual Sales", color="black")
+ax_test.plot(test_forecast_rounded.index, test_forecast_rounded, label="Forecasted Sales", color="blue")
+ax_test.fill_between(
     test_forecast_rounded.index,
     test_conf_int_rounded.iloc[:, 0],
     test_conf_int_rounded.iloc[:, 1],
     alpha=0.2,
     label="90% Confidence Interval"
 )
-ax.set_title("ARIMA Forecast vs Actual (Test Period: Last 52 Weeks)")
-ax.legend()
-st.pyplot(fig)
+ax_test.set_title("ARIMA Forecast vs Actual (Test Period: Last 52 Weeks)")
+ax_test.legend()
+st.pyplot(fig_test)
