@@ -14,7 +14,7 @@ df = pd.read_csv("chocolate_sales.csv", parse_dates=["date"])
 df.set_index("date", inplace=True)
 
 # Google Drive logo (replace with your actual file ID)
-logo_url = https://i.imgur.com/oDM4ECC.jpeg
+logo_url = "https://i.imgur.com/oDM4ECC.jpeg"
 
 # Logo and Title Layout
 col1, col2 = st.columns([1, 8])
