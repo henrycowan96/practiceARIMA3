@@ -263,7 +263,7 @@ st.markdown("""
 </style>
 
 <div class="footer">
-    &copy; 2024 The Forecast Company. All Rights Reserved.  
+    &copy; 2025 The Forecast Company. All Rights Reserved.  
     <br>
     Contact Us: 
     <a href="tel:+18563040922">856-304-0922</a> | 
