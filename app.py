@@ -1,11 +1,12 @@
 import pandas as pd
 import numpy as np
 import streamlit as st
-import matplotlib.pyplot as plt
+import plotly.graph_objects as go
 from statsmodels.tsa.arima.model import ARIMA
 from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
 from statsmodels.graphics.tsaplots import plot_acf
 import scipy.stats as stats
+import matplotlib.pyplot as plt
 
 # ------------------------------ Load Data ------------------------------
 df = pd.read_csv("chocolate_sales.csv", parse_dates=["date"])
@@ -17,7 +18,7 @@ st.title("Chocolate Sales Forecast (Optimized ARIMA)")
 # ------------------------------ Train/Test Split and Fit ------------------------------
 train = df.iloc[:-52]
 test = df.iloc[-52:]
-order = (2, 0, 2)
+order = (3, 1, 2)
 
 with st.spinner(f"Training ARIMA{order}..."):
     model = ARIMA(train["sales"], order=order)
@@ -41,26 +42,35 @@ tabs = st.tabs([
     "Historical Sales Lookup"
 ])
 
-# ------------------------------ Tab 1: 2025 Forecast, Lookup, Summary, Download ------------------------------
+# ------------------------------ Tab 1: Forecast & Summary ------------------------------
 with tabs[0]:
     st.subheader("Forecasted Chocolate Sales for 2025")
 
-    # Forecast Plot
-    fig_forecast, ax_forecast = plt.subplots(figsize=(10, 4))
-    ax_forecast.plot(forecast_rounded.index, forecast_rounded, label="Forecasted Sales", color="blue")
-    ax_forecast.fill_between(
-        forecast_rounded.index,
-        conf_int_rounded.iloc[:, 0],
-        conf_int_rounded.iloc[:, 1],
-        alpha=0.2,
-        label="90% Confidence Interval"
+    # Plotly Forecast Chart
+    fig_forecast = go.Figure()
+    fig_forecast.add_trace(go.Scatter(
+        x=forecast_rounded.index,
+        y=forecast_rounded,
+        mode="lines",
+        name="Forecasted Sales",
+        line=dict(color="blue")
+    ))
+    fig_forecast.add_trace(go.Scatter(
+        x=list(forecast_rounded.index) + list(forecast_rounded.index[::-1]),
+        y=list(conf_int_rounded.iloc[:, 0]) + list(conf_int_rounded.iloc[:, 1][::-1]),
+        fill="toself",
+        fillcolor="rgba(0,0,255,0.2)",
+        line=dict(color="rgba(255,255,255,0)"),
+        hoverinfo="skip",
+        name="90% Confidence Interval"
+    ))
+    fig_forecast.update_layout(
+        title="Projected Chocolate Sales (2025)",
+        xaxis_title="Week",
+        yaxis_title="Sales ($)",
+        hovermode="x unified"
     )
-    ax_forecast.set_title("Projected Chocolate Sales (2025)")
-    ax_forecast.set_ylabel("Sales ($)")
-    ax_forecast.set_xlabel("Week")
-    ax_forecast.legend()
-    plt.tight_layout()
-    st.pyplot(fig_forecast)
+    st.plotly_chart(fig_forecast, use_container_width=True)
 
     # Week Selector
     st.subheader("Select a Week in 2025")
@@ -110,6 +120,7 @@ with tabs[0]:
 # ------------------------------ Tab 2: 2024 Evaluation ------------------------------
 with tabs[1]:
     st.subheader("Model Performance on 2024 Actual Data")
+
     test_forecast_result = model_fit.get_forecast(steps=52, alpha=0.10)
     test_forecast = test_forecast_result.predicted_mean
     test_conf_int = test_forecast_result.conf_int()
@@ -129,60 +140,89 @@ with tabs[1]:
     col3.metric("MAE", f"{mae:.2f}")
     col4.metric("MAPE", f"{mape:.2f}%")
 
-    fig_eval, ax_eval = plt.subplots(figsize=(10, 4))
-    ax_eval.plot(test.index, test["sales"], label="Actual Sales", color="black")
-    ax_eval.plot(test_forecast_rounded.index, test_forecast_rounded, label="Forecasted Sales", color="blue")
-    ax_eval.fill_between(
-        test_forecast_rounded.index,
-        test_conf_int_rounded.iloc[:, 0],
-        test_conf_int_rounded.iloc[:, 1],
-        alpha=0.2,
-        label="90% Confidence Interval"
+    # Plotly Actual vs Forecast
+    fig_eval = go.Figure()
+    fig_eval.add_trace(go.Scatter(
+        x=test.index, y=test["sales"],
+        mode="lines", name="Actual Sales", line=dict(color="black")
+    ))
+    fig_eval.add_trace(go.Scatter(
+        x=test_forecast_rounded.index, y=test_forecast_rounded,
+        mode="lines", name="Forecasted Sales", line=dict(color="blue")
+    ))
+    fig_eval.add_trace(go.Scatter(
+        x=list(test_forecast_rounded.index) + list(test_forecast_rounded.index[::-1]),
+        y=list(test_conf_int_rounded.iloc[:, 0]) + list(test_conf_int_rounded.iloc[:, 1][::-1]),
+        fill="toself",
+        fillcolor="rgba(0,0,255,0.2)",
+        line=dict(color="rgba(255,255,255,0)"),
+        hoverinfo="skip",
+        name="90% Confidence Interval"
+    ))
+    fig_eval.update_layout(
+        title="Forecast vs Actual Sales (2024)",
+        xaxis_title="Week",
+        yaxis_title="Sales ($)",
+        hovermode="x unified"
     )
-    ax_eval.set_title("ARIMA Forecast vs Actual (2024)")
-    ax_eval.set_ylabel("Sales ($)")
-    ax_eval.set_xlabel("Week")
-    ax_eval.legend()
-    plt.tight_layout()
-    st.pyplot(fig_eval)
+    st.plotly_chart(fig_eval, use_container_width=True)
 
 # ------------------------------ Tab 3: Residual Diagnostics ------------------------------
 with tabs[2]:
     st.subheader("Residual Diagnostics")
     residuals = model_fit.resid
 
-    fig_resid, ax_resid = plt.subplots(figsize=(10, 4))
-    ax_resid.plot(residuals)
-    ax_resid.set_title("Residuals Over Time")
-    ax_resid.set_ylabel("Residual")
-    ax_resid.grid(True)
-    plt.tight_layout()
-    st.pyplot(fig_resid)
+    # Residual Time Series
+    fig_resid = go.Figure()
+    fig_resid.add_trace(go.Scatter(
+        x=train.index,
+        y=residuals,
+        mode="lines",
+        name="Residuals"
+    ))
+    fig_resid.update_layout(title="Residuals Over Time", xaxis_title="Date", yaxis_title="Residual")
+    st.plotly_chart(fig_resid, use_container_width=True)
 
-    fig_hist, ax_hist = plt.subplots(figsize=(10, 4))
+    # Histogram using Matplotlib
+    st.subheader("Residual Distribution")
+    fig_hist, ax_hist = plt.subplots(figsize=(8, 4))
     ax_hist.hist(residuals, bins=20, edgecolor="k", alpha=0.7)
     ax_hist.set_title("Histogram of Residuals")
     ax_hist.set_xlabel("Residual")
     ax_hist.set_ylabel("Frequency")
-    plt.tight_layout()
     st.pyplot(fig_hist)
 
+    # Q-Q Plot
     fig_qq, ax_qq = plt.subplots(figsize=(6, 6))
     stats.probplot(residuals, dist="norm", plot=ax_qq)
     ax_qq.set_title("Q-Q Plot of Residuals")
-    plt.tight_layout()
     st.pyplot(fig_qq)
 
+    # ACF Plot (Matplotlib only)
     fig_acf, ax_acf = plt.subplots(figsize=(10, 4))
     plot_acf(residuals, ax=ax_acf, lags=40)
     ax_acf.set_title("Autocorrelation (ACF) of Residuals")
-    plt.tight_layout()
     st.pyplot(fig_acf)
 
-# ------------------------------ Tab 4: Historical Sales Lookup ------------------------------
+# ------------------------------ Tab 4: Historical Sales ------------------------------
 with tabs[3]:
     st.subheader("Historical Weekly Sales")
-    st.line_chart(df["sales"])
+
+    fig_hist_sales = go.Figure()
+    fig_hist_sales.add_trace(go.Scatter(
+        x=df.index,
+        y=df["sales"],
+        mode="lines",
+        name="Historical Sales",
+        line=dict(color="black")
+    ))
+    fig_hist_sales.update_layout(
+        title="All-Time Weekly Chocolate Sales",
+        xaxis_title="Date",
+        yaxis_title="Sales ($)",
+        hovermode="x unified"
+    )
+    st.plotly_chart(fig_hist_sales, use_container_width=True)
 
     st.subheader("Look Up Actual Sales for a Past Week")
     historical_date = st.date_input(
@@ -199,3 +239,4 @@ with tabs[3]:
     else:
         actual_sales = df.loc[historical_date, "sales"]
         st.metric("Actual Sales", f"{actual_sales:.2f}")
+
