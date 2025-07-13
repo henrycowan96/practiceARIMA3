@@ -44,7 +44,8 @@ tabs = st.tabs([
     "2025 Forecast & Summary",
     "2024 Model Evaluation",
     "Residual Diagnostics",
-    "Historical Sales Lookup"
+    "Historical Sales Lookup",
+    "Rolling Forecast Validation"
 ])
 
 # ------------------------------ Tab 1: Forecast & Summary ------------------------------
@@ -191,7 +192,6 @@ with tabs[2]:
     st.pyplot(fig_hist)
 
     fig_qq, ax_qq = plt.subplots(figsize=(6, 6))
-    import scipy.stats as stats
     stats.probplot(residuals, dist="norm", plot=ax_qq)
     ax_qq.set_title("Q-Q Plot of Residuals")
     st.pyplot(fig_qq)
@@ -237,6 +237,59 @@ with tabs[3]:
         actual_sales = df.loc[historical_date, "sales"]
         st.metric("Actual Sales", f"{actual_sales:.2f}")
 
+# ------------------------------ Tab 5: Rolling Forecast Validation ------------------------------
+with tabs[4]:
+    st.subheader("Rolling Forecast Validation (1-Week Ahead)")
+
+    if st.button("Run Rolling Forecast Validation"):
+        series = df["sales"]
+        n_total = len(series)
+        train_size = len(train)  # initial training size
+        errors = []
+        pred_dates = []
+
+        progress_bar = st.progress(0)
+
+        for i in range(n_total - train_size - 1):
+            train_end = train_size + i
+            train_data = series.iloc[:train_end]
+            test_data = series.iloc[train_end:train_end+1]
+
+            try:
+                model = ARIMA(train_data, order=order)
+                model_fit = model.fit()
+                forecast = model_fit.forecast(steps=1)
+                error = mean_squared_error(test_data, forecast)
+                errors.append(error)
+                pred_dates.append(test_data.index[0])
+            except Exception as e:
+                st.warning(f"Model failed to fit at step {i}: {e}")
+                errors.append(np.nan)
+                pred_dates.append(test_data.index[0])
+
+            progress_bar.progress((i + 1) / (n_total - train_size - 1))
+
+        rolling_rmse = np.sqrt(np.nanmean(errors))
+        st.metric("Rolling Forecast RMSE (1-week ahead)", f"{rolling_rmse:.2f}")
+
+        # Plot errors over time
+        fig_errors = go.Figure()
+        fig_errors.add_trace(go.Scatter(
+            x=pred_dates,
+            y=np.sqrt(errors),
+            mode="lines+markers",
+            name="1-week ahead RMSE"
+        ))
+        fig_errors.update_layout(
+            title="Rolling Forecast RMSE Over Time",
+            xaxis_title="Date",
+            yaxis_title="RMSE",
+            hovermode="x unified"
+        )
+        st.plotly_chart(fig_errors, use_container_width=True)
+    else:
+        st.info("Click the button above to start rolling forecast validation.")
+
 # ------------------------------ Footer ------------------------------
 st.markdown("""
 <style>
@@ -263,7 +316,7 @@ st.markdown("""
 </style>
 
 <div class="footer">
-    &copy; 2025 The Forecast Company. All Rights Reserved.  
+    &copy; 2024 The Forecast Company. All Rights Reserved.  
     <br>
     Contact Us: 
     <a href="tel:+18563040922">856-304-0922</a> | 
