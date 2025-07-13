@@ -7,25 +7,18 @@ from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
 from statsmodels.graphics.tsaplots import plot_acf
 import scipy.stats as stats
 import matplotlib.pyplot as plt
-from PIL import Image
 
-# Load Data
+# ------------------------------ Load Data ------------------------------
 df = pd.read_csv("chocolate_sales.csv", parse_dates=["date"])
 df.set_index("date", inplace=True)
 
-# Google Drive logo (replace with your actual file ID)
+# ------------------------------ Logo and Title ------------------------------
 logo_url = "https://i.imgur.com/oDM4ECC.jpeg"
-
-# Logo and Title Layout
 col1, col2 = st.columns([1, 8])
 with col1:
     st.image(logo_url, use_container_width=True)
 with col2:
     st.title("Chocolate Sales Forecast (Optimized ARIMA)")
-
-# ------------------------------ Load Data ------------------------------
-df = pd.read_csv("chocolate_sales.csv", parse_dates=["date"])
-df.set_index("date", inplace=True)
 
 # ------------------------------ Train/Test Split and Fit ------------------------------
 train = df.iloc[:-52]
@@ -184,18 +177,11 @@ with tabs[2]:
     st.subheader("Residual Diagnostics")
     residuals = model_fit.resid
 
-    # Residual Time Series
     fig_resid = go.Figure()
-    fig_resid.add_trace(go.Scatter(
-        x=train.index,
-        y=residuals,
-        mode="lines",
-        name="Residuals"
-    ))
+    fig_resid.add_trace(go.Scatter(x=train.index, y=residuals, mode="lines", name="Residuals"))
     fig_resid.update_layout(title="Residuals Over Time", xaxis_title="Date", yaxis_title="Residual")
     st.plotly_chart(fig_resid, use_container_width=True)
 
-    # Histogram using Matplotlib
     st.subheader("Residual Distribution")
     fig_hist, ax_hist = plt.subplots(figsize=(8, 4))
     ax_hist.hist(residuals, bins=20, edgecolor="k", alpha=0.7)
@@ -204,13 +190,12 @@ with tabs[2]:
     ax_hist.set_ylabel("Frequency")
     st.pyplot(fig_hist)
 
-    # Q-Q Plot
     fig_qq, ax_qq = plt.subplots(figsize=(6, 6))
+    import scipy.stats as stats
     stats.probplot(residuals, dist="norm", plot=ax_qq)
     ax_qq.set_title("Q-Q Plot of Residuals")
     st.pyplot(fig_qq)
 
-    # ACF Plot (Matplotlib only)
     fig_acf, ax_acf = plt.subplots(figsize=(10, 4))
     plot_acf(residuals, ax=ax_acf, lags=40)
     ax_acf.set_title("Autocorrelation (ACF) of Residuals")
@@ -252,3 +237,36 @@ with tabs[3]:
         actual_sales = df.loc[historical_date, "sales"]
         st.metric("Actual Sales", f"{actual_sales:.2f}")
 
+# ------------------------------ Footer ------------------------------
+st.markdown("""
+<style>
+.footer {
+    position: relative;
+    bottom: 0;
+    width: 100%;
+    background-color: #f0f2f6;
+    padding: 10px 20px;
+    font-size: 0.9em;
+    color: #555555;
+    text-align: center;
+    border-top: 1px solid #d3d3d3;
+    margin-top: 20px;
+}
+.footer a {
+    color: #1a73e8;
+    text-decoration: none;
+    margin: 0 8px;
+}
+.footer a:hover {
+    text-decoration: underline;
+}
+</style>
+
+<div class="footer">
+    &copy; 2024 The Forecast Company. All Rights Reserved.  
+    <br>
+    Contact Us: 
+    <a href="tel:+18563040922">856-304-0922</a> | 
+    <a href="mailto:theforecastcompany@gmail.com">theforecastcompany@gmail.com</a>
+</div>
+""", unsafe_allow_html=True)
