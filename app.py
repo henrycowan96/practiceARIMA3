@@ -7,13 +7,25 @@ from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
 from statsmodels.graphics.tsaplots import plot_acf
 import scipy.stats as stats
 import matplotlib.pyplot as plt
+from PIL import Image
+
+# Load Data
+df = pd.read_csv("chocolate_sales.csv", parse_dates=["date"])
+df.set_index("date", inplace=True)
+
+# Google Drive logo (replace with your actual file ID)
+logo_url = "https://drive.google.com/uc?export=view&id=16-upM5SmaMqMhQMZPYO5LRoQ8Vew_u02"
+
+# Logo and Title Layout
+col1, col2 = st.columns([1, 8])
+with col1:
+    st.image(logo_url, use_column_width=True)
+with col2:
+    st.title("Chocolate Sales Forecast (Optimized ARIMA)")
 
 # ------------------------------ Load Data ------------------------------
 df = pd.read_csv("chocolate_sales.csv", parse_dates=["date"])
 df.set_index("date", inplace=True)
-
-# ------------------------------ App Title ------------------------------
-st.title("Chocolate Sales Forecast (Optimized ARIMA)")
 
 # ------------------------------ Train/Test Split and Fit ------------------------------
 train = df.iloc[:-52]
