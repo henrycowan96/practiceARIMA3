@@ -19,7 +19,7 @@ logo_url = "https://drive.google.com/uc?export=view&id=16-upM5SmaMqMhQMZPYO5LRoQ
 # Logo and Title Layout
 col1, col2 = st.columns([1, 8])
 with col1:
-    st.image(logo_url, use_column_width=True)
+    st.image(logo_url, use_container_width=True)
 with col2:
     st.title("Chocolate Sales Forecast (Optimized ARIMA)")
 
