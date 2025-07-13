@@ -18,7 +18,7 @@ st.title("Chocolate Sales Forecast (Optimized ARIMA)")
 # ------------------------------ Train/Test Split and Fit ------------------------------
 train = df.iloc[:-52]
 test = df.iloc[-52:]
-order = (3, 1, 2)
+order = (2, 0, 2)
 
 with st.spinner(f"Training ARIMA{order}..."):
     model = ARIMA(train["sales"], order=order)
